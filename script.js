@@ -15,7 +15,22 @@ function setAwake(next) {
   if (awake) setAwake.t = setTimeout(() => setAwake(false), 5000); // he dozes off again
 }
 petBtn.addEventListener('click', () => setAwake(!awake));
-document.getElementById('oyen-hit').addEventListener('click', () => setAwake(!awake));
+// Easter egg: tap Miso 5 times quickly and he rolls belly-up
+const sleepPose = document.getElementById('miso-sleep');
+const rollPose = document.getElementById('miso-roll');
+let taps = [], rolling = false;
+document.getElementById('oyen-hit').addEventListener('click', () => {
+  if (rolling) return;
+  const now = Date.now();
+  taps = taps.filter((t) => now - t < 3000).concat(now);
+  if (taps.length >= 5) {
+    taps = []; rolling = true; setAwake(false);
+    sleepPose.style.display = 'none'; rollPose.style.display = '';
+    setTimeout(() => { rollPose.style.display = 'none'; sleepPose.style.display = ''; rolling = false; }, 4500);
+  } else {
+    setAwake(!awake);
+  }
+});
 
 // ---------- Rain: canvas drops + splash ripples ----------
 const hero = document.querySelector('.hero');
@@ -119,3 +134,159 @@ const io = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal, .peek').forEach((el) => io.observe(el));
 
 document.getElementById('year').textContent = new Date().getFullYear();
+
+// ---------- Phone menu ----------
+const menuBtn = document.getElementById('menu-btn');
+const navLinks = document.getElementById('nav-links');
+function setMenu(open) {
+  navLinks.classList.toggle('open', open);
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+}
+menuBtn.addEventListener('click', () => setMenu(!navLinks.classList.contains('open')));
+navLinks.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
+
+// ---------- Open now badge (Penang time) ----------
+// PLACEHOLDER HOURS: replace with your real opening hours.
+// 0 = Sunday ... 6 = Saturday. Use null for closed days. 24-hour "HH:MM".
+const HOURS = {
+  0: ['09:00', '18:00'],
+  1: null,
+  2: ['08:00', '18:00'],
+  3: ['08:00', '18:00'],
+  4: ['08:00', '18:00'],
+  5: ['08:00', '18:00'],
+  6: ['09:00', '18:00'],
+};
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const toMin = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+const pretty = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'am' : 'pm'}`;
+};
+function penangNow() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kuala_Lumpur', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+  }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+  return { day: DAY_NAMES.indexOf(parts.weekday), min: Number(parts.hour) * 60 + Number(parts.minute) };
+}
+function openStatus() {
+  const { day, min } = penangNow();
+  const today = HOURS[day];
+  if (today && min >= toMin(today[0]) && min < toMin(today[1])) {
+    return { open: true, text: `Open now · closes ${pretty(today[1])}` };
+  }
+  if (today && min < toMin(today[0])) {
+    return { open: false, text: `Closed · opens ${pretty(today[0])} today` };
+  }
+  for (let i = 1; i <= 7; i++) {
+    const d = (day + i) % 7;
+    if (HOURS[d]) {
+      const when = i === 1 ? 'tomorrow' : DAY_NAMES[d];
+      return { open: false, text: `Closed, Miso is napping · opens ${pretty(HOURS[d][0])} ${when}` };
+    }
+  }
+  return { open: false, text: 'Closed for now' };
+}
+function updateBadges() {
+  const s = openStatus();
+  document.querySelectorAll('[data-open-badge]').forEach((el) => {
+    el.classList.toggle('is-open', s.open);
+    el.querySelector('.txt').textContent = s.text;
+  });
+}
+updateBadges();
+setInterval(updateBadges, 60 * 1000);
+
+// ---------- Miso FM: a lofi loop synthesised in the browser ----------
+const radio = document.getElementById('radio');
+const radioBtn = document.getElementById('radio-btn');
+let audio = null, playing = false, schedTimer = null, nextBar = 0, barIndex = 0;
+const BPM = 72, BEAT = 60 / BPM, BAR = BEAT * 4;
+const CHORDS = [ // Fmaj7, Em7, Dm7, Cmaj7 (MIDI notes) + bass root
+  { notes: [53, 57, 60, 64], bass: 41 },
+  { notes: [52, 55, 59, 62], bass: 40 },
+  { notes: [50, 53, 57, 60], bass: 38 },
+  { notes: [48, 52, 55, 59], bass: 36 },
+];
+const freq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+function buildAudio() {
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+  const warm = ac.createBiquadFilter(); warm.type = 'lowpass'; warm.frequency.value = 1500; warm.connect(master);
+
+  // noise buffer for hats + vinyl crackle
+  const noise = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+  const nd = noise.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const crackleBuf = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate);
+  const cd = crackleBuf.getChannelData(0);
+  for (let i = 0; i < cd.length; i++) cd[i] = Math.random() < 0.0008 ? (Math.random() * 2 - 1) : (Math.random() * 2 - 1) * 0.015;
+  const crackle = ac.createBufferSource(); crackle.buffer = crackleBuf; crackle.loop = true;
+  const cg = ac.createGain(); cg.gain.value = 0.35;
+  const chp = ac.createBiquadFilter(); chp.type = 'highpass'; chp.frequency.value = 900;
+  crackle.connect(chp).connect(cg).connect(master); crackle.start();
+
+  return { ac, master, warm, noise };
+}
+
+function note(a, m, t, dur, type, vol, dest) {
+  const o = a.ac.createOscillator(), g = a.ac.createGain();
+  o.type = type; o.frequency.value = freq(m); o.detune.value = (Math.random() - 0.5) * 12;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(vol * 0.35, t + 0.8);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.05);
+}
+function kick(a, t) {
+  const o = a.ac.createOscillator(), g = a.ac.createGain();
+  o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
+  g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+  o.connect(g).connect(a.master); o.start(t); o.stop(t + 0.4);
+}
+function hat(a, t, vol) {
+  const s = a.ac.createBufferSource(), f = a.ac.createBiquadFilter(), g = a.ac.createGain();
+  s.buffer = a.noise; f.type = 'highpass'; f.frequency.value = 6500;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  s.connect(f).connect(g).connect(a.master); s.start(t, Math.random()); s.stop(t + 0.08);
+}
+function scheduleBar(a, t) {
+  const c = CHORDS[barIndex % CHORDS.length];
+  c.notes.forEach((m, i) => note(a, m, t + i * 0.025, BAR * 0.98, 'triangle', 0.07, a.warm)); // lazy strum
+  note(a, c.bass, t, BEAT * 1.8, 'sine', 0.22, a.master);
+  note(a, c.bass, t + BEAT * 2.5, BEAT * 1.4, 'sine', 0.16, a.master);
+  kick(a, t); kick(a, t + BEAT * 2.5);
+  for (let i = 0; i < 8; i++) {
+    const swing = i % 2 ? BEAT * 0.08 : 0; // a little lazy swing
+    hat(a, t + i * (BEAT / 2) + swing, i % 2 ? 0.05 : 0.09);
+  }
+  barIndex++;
+}
+function scheduler() {
+  while (nextBar < audio.ac.currentTime + 1.5) { scheduleBar(audio, nextBar); nextBar += BAR; }
+}
+async function setRadio(on) {
+  if (on) {
+    if (!audio) audio = buildAudio();
+    await audio.ac.resume();
+    nextBar = audio.ac.currentTime + 0.1;
+    scheduler(); schedTimer = setInterval(scheduler, 300);
+    audio.master.gain.cancelScheduledValues(audio.ac.currentTime);
+    audio.master.gain.linearRampToValueAtTime(0.5, audio.ac.currentTime + 1.5);
+  } else if (audio) {
+    clearInterval(schedTimer);
+    audio.master.gain.cancelScheduledValues(audio.ac.currentTime);
+    audio.master.gain.setValueAtTime(audio.master.gain.value, audio.ac.currentTime);
+    audio.master.gain.linearRampToValueAtTime(0, audio.ac.currentTime + 0.6);
+    setTimeout(() => { if (!playing) audio.ac.suspend(); }, 700);
+  }
+  playing = on;
+  radio.classList.toggle('playing', on);
+  radioBtn.setAttribute('aria-pressed', String(on));
+  radioBtn.setAttribute('aria-label', on ? 'Pause Miso FM' : 'Play Miso FM lofi radio');
+}
+radioBtn.addEventListener('click', () => setRadio(!playing));
