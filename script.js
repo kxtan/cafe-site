@@ -215,8 +215,13 @@ const freq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
 function buildAudio() {
   const ac = new (window.AudioContext || window.webkitAudioContext)();
-  const master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
-  const warm = ac.createBiquadFilter(); warm.type = 'lowpass'; warm.frequency.value = 1500; warm.connect(master);
+  // gentle compressor + limiter-ish ceiling so nothing clips on phone/laptop speakers
+  const comp = ac.createDynamicsCompressor();
+  comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 6;
+  comp.attack.value = 0.005; comp.release.value = 0.25;
+  comp.connect(ac.destination);
+  const master = ac.createGain(); master.gain.value = 0; master.connect(comp);
+  const warm = ac.createBiquadFilter(); warm.type = 'lowpass'; warm.frequency.value = 1400; warm.connect(master);
 
   // noise buffer for hats + vinyl crackle
   const noise = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
@@ -224,10 +229,10 @@ function buildAudio() {
   for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
   const crackleBuf = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate);
   const cd = crackleBuf.getChannelData(0);
-  for (let i = 0; i < cd.length; i++) cd[i] = Math.random() < 0.0008 ? (Math.random() * 2 - 1) : (Math.random() * 2 - 1) * 0.015;
+  for (let i = 0; i < cd.length; i++) cd[i] = Math.random() < 0.0004 ? (Math.random() * 2 - 1) * 0.4 : (Math.random() * 2 - 1) * 0.01;
   const crackle = ac.createBufferSource(); crackle.buffer = crackleBuf; crackle.loop = true;
-  const cg = ac.createGain(); cg.gain.value = 0.35;
-  const chp = ac.createBiquadFilter(); chp.type = 'highpass'; chp.frequency.value = 900;
+  const cg = ac.createGain(); cg.gain.value = 0.18;
+  const chp = ac.createBiquadFilter(); chp.type = 'bandpass'; chp.frequency.value = 2500; chp.Q.value = 0.6;
   crackle.connect(chp).connect(cg).connect(master); crackle.start();
 
   return { ac, master, warm, noise };
@@ -244,25 +249,29 @@ function note(a, m, t, dur, type, vol, dest) {
 }
 function kick(a, t) {
   const o = a.ac.createOscillator(), g = a.ac.createGain();
-  o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
-  g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+  // soft, rounded kick that small speakers can actually play (no sub-bass, no click)
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(65, t + 0.15);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.28, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
   o.connect(g).connect(a.master); o.start(t); o.stop(t + 0.4);
 }
 function hat(a, t, vol) {
   const s = a.ac.createBufferSource(), f = a.ac.createBiquadFilter(), g = a.ac.createGain();
-  s.buffer = a.noise; f.type = 'highpass'; f.frequency.value = 6500;
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  s.buffer = a.noise; f.type = 'bandpass'; f.frequency.value = 7000; f.Q.value = 1;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
   s.connect(f).connect(g).connect(a.master); s.start(t, Math.random()); s.stop(t + 0.08);
 }
 function scheduleBar(a, t) {
   const c = CHORDS[barIndex % CHORDS.length];
-  c.notes.forEach((m, i) => note(a, m, t + i * 0.025, BAR * 0.98, 'triangle', 0.07, a.warm)); // lazy strum
-  note(a, c.bass, t, BEAT * 1.8, 'sine', 0.22, a.master);
-  note(a, c.bass, t + BEAT * 2.5, BEAT * 1.4, 'sine', 0.16, a.master);
+  c.notes.forEach((m, i) => note(a, m, t + i * 0.03, BAR * 0.98, 'sine', 0.045, a.warm)); // lazy strum, soft keys
+  c.notes.forEach((m, i) => note(a, m + 12, t + i * 0.03, BAR * 0.6, 'triangle', 0.012, a.warm)); // a little shimmer
+  note(a, c.bass + 12, t, BEAT * 1.8, 'triangle', 0.09, a.warm); // bass an octave up: warm, not boomy
+  note(a, c.bass + 12, t + BEAT * 2.5, BEAT * 1.4, 'triangle', 0.07, a.warm);
   kick(a, t); kick(a, t + BEAT * 2.5);
   for (let i = 0; i < 8; i++) {
     const swing = i % 2 ? BEAT * 0.08 : 0; // a little lazy swing
-    hat(a, t + i * (BEAT / 2) + swing, i % 2 ? 0.05 : 0.09);
+    hat(a, t + i * (BEAT / 2) + swing, i % 2 ? 0.025 : 0.045);
   }
   barIndex++;
 }
@@ -276,13 +285,16 @@ async function setRadio(on) {
     nextBar = audio.ac.currentTime + 0.1;
     scheduler(); schedTimer = setInterval(scheduler, 300);
     audio.master.gain.cancelScheduledValues(audio.ac.currentTime);
-    audio.master.gain.linearRampToValueAtTime(0.5, audio.ac.currentTime + 1.5);
+    audio.master.gain.setValueAtTime(audio.master.gain.value, audio.ac.currentTime);
+    audio.master.gain.linearRampToValueAtTime(0.6, audio.ac.currentTime + 1.5);
   } else if (audio) {
     clearInterval(schedTimer);
     audio.master.gain.cancelScheduledValues(audio.ac.currentTime);
     audio.master.gain.setValueAtTime(audio.master.gain.value, audio.ac.currentTime);
     audio.master.gain.linearRampToValueAtTime(0, audio.ac.currentTime + 0.6);
-    setTimeout(() => { if (!playing) audio.ac.suspend(); }, 700);
+    // close the whole audio engine so leftover scheduled notes can't pile up on the next play
+    const old = audio; audio = null;
+    setTimeout(() => old.ac.close(), 700);
   }
   playing = on;
   radio.classList.toggle('playing', on);
