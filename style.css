@@ -127,6 +127,18 @@ body.day .hero .open-badge { background: rgba(59, 36, 24, .08); }
 @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 18px; } }
 @media (max-width: 480px) { .radio-text span { display: none; } }
 
+/* Miso status + festive greeting */
+.miso-status { display: flex; align-items: center; gap: 8px; margin: 22px 0 0; font-size: 15px; color: var(--hero-lede); }
+.miso-status svg { fill: var(--pink); flex: none; }
+.miso-status strong { color: var(--hero-ink); }
+.festive {
+  display: inline-block; margin: 12px 0 0; padding: 6px 14px; border-radius: 999px;
+  background: var(--butter); color: var(--teak); font-weight: 700; font-size: 14px;
+}
+.festive[hidden] { display: none; }
+.flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flicker .9s ease-in-out infinite alternate; }
+@keyframes flicker { from { transform: scale(1, 1); } to { transform: scale(.85, 1.15) skewX(4deg); } }
+
 /* Easter egg hearts */
 .heart { transform-box: fill-box; transform-origin: center; animation: heart 1.6s ease-out infinite; }
 .heart.b { animation-delay: .5s; }
@@ -313,7 +325,7 @@ footer p { margin: 0; color: #E8DCCB; }
 @media (prefers-reduced-motion: reduce) {
   body::after, .star, .cloud, .glow, .oyen-body, .oyen-tail, .lantern, .steam, .zzz,
   .dish:hover .dish-photo::before, .dish:hover .dish-photo::after,
-  .open-badge.is-open .dot, .radio.playing .eq i, .heart, .nav-links.open { animation: none; }
+  .open-badge.is-open .dot, .radio.playing .eq i, .heart, .nav-links.open, .flame { animation: none; }
   .steam { opacity: .5; }
   .reveal { opacity: 1; transform: none; transition: none; }
   html { scroll-behavior: auto; }

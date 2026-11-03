@@ -62,6 +62,11 @@
         <a class="btn btn-accent" href="#menu">See the menu</a>
         <button id="pet-btn" class="btn btn-ghost" type="button">Pet Miso</button>
       </div>
+      <p class="miso-status">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><use href="#paw"/></svg>
+        <span>Miso is currently <strong id="miso-status">napping</strong></span>
+      </p>
+      <p class="festive" id="festive" hidden></p>
     </div>
 
     <div class="hero-art">
@@ -149,6 +154,34 @@
           <path d="M144 446 a4 4 0 0 1 0 8" fill="none" stroke="#FBF4E6" stroke-width="2"/>
           <path class="steam" d="M131 438 q-3 -5 0 -10 q3 -5 0 -10" fill="none" stroke="#FBF4E6" stroke-width="2" stroke-linecap="round"/>
           <path class="steam b" d="M139 438 q-3 -5 0 -10 q3 -5 0 -10" fill="none" stroke="#FBF4E6" stroke-width="2" stroke-linecap="round"/>
+          <!-- seasonal props on the left windowsill -->
+          <g class="outfit" data-outfit="cny" style="display:none">
+            <circle cx="186" cy="450" r="8" fill="#F28C28"/><circle cx="202" cy="451" r="7" fill="#F59E0B"/>
+            <path d="M186 442 q4 -5 8 -2 q-4 3 -8 2" fill="#4E937F"/><path d="M202 444 q4 -4 7 -1 q-4 2 -7 1" fill="#4E937F"/>
+          </g>
+          <g class="outfit" data-outfit="raya" style="display:none">
+            <polygon points="194,438 205,449 194,458 183,449" fill="#8DBF5A"/>
+            <path d="M188.5 443.5 L199.5 454.5 M199.5 443.5 L188.5 454.5 M194 438 v20" stroke="#5E8C3A" stroke-width="1.4"/>
+            <path d="M194 438 q3 -8 9 -10 M194 438 q-2 -8 -7 -11" stroke="#8DBF5A" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </g>
+          <g class="outfit" data-outfit="deepavali" style="display:none">
+            <circle class="glow" cx="194" cy="446" r="14" fill="#FFB627" opacity="0.25"/>
+            <path d="M184 452 h20 q-3 6 -10 6 q-7 0 -10 -6 Z" fill="#C9662B"/>
+            <path d="M184 452 h20" stroke="#F6D58E" stroke-width="1.5"/>
+            <path class="flame" d="M194 451 q-4 -5 0 -12 q4 7 0 12 Z" fill="#FFB627"/>
+          </g>
+          <g class="outfit" data-outfit="mooncake" style="display:none">
+            <ellipse cx="194" cy="452" rx="12" ry="6" fill="#B8742F"/>
+            <rect x="182" y="444" width="24" height="8" fill="#D49A52"/>
+            <ellipse cx="194" cy="444" rx="12" ry="6" fill="#E3B06C"/>
+            <ellipse cx="194" cy="444" rx="6" ry="3" fill="none" stroke="#B8742F" stroke-width="1.2"/>
+          </g>
+          <g class="outfit" data-outfit="christmas" style="display:none">
+            <path d="M194 434 l12 22 h-24 Z" fill="#3F8F5E"/>
+            <rect x="191" y="456" width="6" height="2" fill="#5A3826"/>
+            <circle cx="190" cy="448" r="1.6" fill="#F6D58E"/><circle cx="198" cy="444" r="1.6" fill="#F2A6A0"/><circle cx="196" cy="452" r="1.6" fill="#FFFFFF"/>
+            <path d="M194 430 l1.2 2.6 2.8 .3 -2.1 1.8 .6 2.8 -2.5 -1.4 -2.5 1.4 .6 -2.8 -2.1 -1.8 2.8 -.3 Z" fill="#F6D58E"/>
+          </g>
           <!-- door + pintu pagar -->
           <rect x="255" y="360" width="90" height="140" fill="#5A3826"/>
           <rect x="262" y="368" width="76" height="132" fill="#FFE7AE"/>
@@ -194,6 +227,32 @@
             <circle cx="411" cy="441" r="14" fill="#EFB27C"/>
             <ellipse cx="411" cy="448" rx="8" ry="5" fill="#FBEBDD"/>
             <path d="M406 430 v4 M411 429 v5 M416 430 v4" stroke="#D98E52" stroke-width="1.6" stroke-linecap="round"/>
+            <!-- seasonal hats (shown automatically around each festival) -->
+            <g class="outfit" data-outfit="christmas" style="display:none">
+              <path d="M398 426 Q403 405 418 402 Q430 404 433 414 L426 426 Z" fill="#D93B2B"/>
+              <rect x="395" y="423" width="33" height="7" rx="3.5" fill="#FFFFFF"/>
+              <circle cx="433" cy="414" r="4" fill="#FFFFFF"/>
+            </g>
+            <g class="outfit" data-outfit="cny" style="display:none">
+              <path d="M397 428 a14 11 0 0 1 28 0 Z" fill="#C8102E"/>
+              <path d="M411 417 v11 M404 419 l3 9 M418 419 l-3 9" stroke="#A00D25" stroke-width="1"/>
+              <rect x="396" y="425" width="30" height="3.5" rx="1.5" fill="#F6D58E"/>
+              <circle cx="411" cy="416" r="2.6" fill="#F6D58E"/>
+            </g>
+            <g class="outfit" data-outfit="raya" style="display:none">
+              <path d="M399 428 L400 416 Q411 413 422 416 L423 428 Z" fill="#2A2420"/>
+              <path d="M400 418 Q411 415 422 418" stroke="#F6D58E" stroke-width="1" fill="none"/>
+            </g>
+            <g class="outfit" data-outfit="deepavali" style="display:none">
+              <circle cx="399" cy="451" r="2.6" fill="#F59E0B"/><circle cx="404" cy="455" r="2.6" fill="#F97316"/>
+              <circle cx="411" cy="456.5" r="2.6" fill="#F59E0B"/><circle cx="418" cy="455" r="2.6" fill="#F97316"/>
+              <circle cx="423" cy="451" r="2.6" fill="#F59E0B"/>
+            </g>
+            <g class="outfit" data-outfit="mooncake" style="display:none">
+              <path d="M409 418 q2 -6 4 0" stroke="#3B2418" stroke-width="1" fill="none"/>
+              <rect x="405" y="418" width="12" height="9" rx="4" fill="#E2483D"/>
+              <rect x="406" y="417" width="10" height="2" fill="#F6D58E"/><rect x="406" y="426" width="10" height="2" fill="#F6D58E"/>
+            </g>
             <g id="eyes-closed">
               <path d="M403 441 q3 3 6 0 M413 441 q3 3 6 0" fill="none" stroke="#3B2418" stroke-width="1.8" stroke-linecap="round"/>
               <text class="zzz" x="426" y="408" font-family="Fredoka, sans-serif" font-size="12" font-weight="600" fill="#8A6B3E">z z</text>

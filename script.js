@@ -190,15 +190,75 @@ function openStatus() {
   }
   return { open: false, text: 'Closed for now' };
 }
+// ---------- What is Miso doing right now? ----------
+function misoStatus() {
+  const { day, min } = penangNow();
+  const h = min / 60;
+  if (!HOURS[day] && h >= 8 && h < 20) return 'enjoying his day off';
+  if (h < 6) return 'fast asleep (you should be too)';
+  if (h < 8) return 'stretching and yawning';
+  if (h < 10) return 'supervising the first pour overs';
+  if (h < 12) return 'judging customers from the windowsill';
+  if (h < 14) return 'having his post-lunch nap';
+  if (h < 16) return 'chasing the afternoon sunbeam';
+  if (h < 18) return 'staring at the milk jug';
+  if (h < 21) return raining ? 'listening to the rain' : 'loafing on the counter';
+  return 'dreaming about fish';
+}
+
 function updateBadges() {
   const s = openStatus();
   document.querySelectorAll('[data-open-badge]').forEach((el) => {
     el.classList.toggle('is-open', s.open);
     el.querySelector('.txt').textContent = s.text;
   });
+  document.getElementById('miso-status').textContent = misoStatus();
 }
 updateBadges();
 setInterval(updateBadges, 60 * 1000);
+
+// ---------- Seasonal outfits ----------
+// Miso dresses up automatically around each festival (Penang time).
+// Lunar/Islamic dates move every year: add new years here. Dates marked "est." should be
+// checked against the official Malaysian holiday list when it is published.
+const FESTIVALS = [
+  { outfit: 'deepavali', date: '2026-11-08', before: 5, after: 3, greet: 'Happy Deepavali from Miso!' },
+  { outfit: 'cny',       date: '2027-02-06', before: 7, after: 15, greet: 'Gong Xi Fa Cai from Miso!' },
+  { outfit: 'raya',      date: '2027-03-10', before: 3, after: 14, greet: 'Selamat Hari Raya from Miso!' },
+  { outfit: 'mooncake',  date: '2027-09-15', before: 10, after: 2, greet: 'Happy Mid-Autumn from Miso!' },
+  { outfit: 'deepavali', date: '2027-10-28', before: 5, after: 3, greet: 'Happy Deepavali from Miso!' },
+  { outfit: 'cny',       date: '2028-01-26', before: 7, after: 15, greet: 'Gong Xi Fa Cai from Miso!' },
+  { outfit: 'raya',      date: '2028-02-27', before: 3, after: 14, greet: 'Selamat Hari Raya from Miso!' }, // est.
+  { outfit: 'mooncake',  date: '2028-10-03', before: 10, after: 2, greet: 'Happy Mid-Autumn from Miso!' },
+  { outfit: 'deepavali', date: '2028-10-17', before: 5, after: 3, greet: 'Happy Deepavali from Miso!' }, // est.
+];
+function penangDate() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date()); // YYYY-MM-DD
+}
+function currentFestival() {
+  const today = new Date(penangDate() + 'T00:00:00Z');
+  const year = today.getUTCFullYear();
+  const list = FESTIVALS.concat({ outfit: 'christmas', date: `${year}-12-25`, before: 14, after: 1, greet: 'Merry Christmas from Miso!' });
+  return list.find((f) => {
+    const d = new Date(f.date + 'T00:00:00Z');
+    const diff = (today - d) / 86400000;
+    return diff >= -f.before && diff <= f.after;
+  });
+}
+function applyOutfit() {
+  // preview any outfit with ?outfit=cny (or christmas, raya, deepavali, mooncake, none)
+  const forced = new URLSearchParams(location.search).get('outfit');
+  const fest = forced
+    ? { outfit: forced, greet: (FESTIVALS.find((f) => f.outfit === forced) || { greet: forced === 'christmas' ? 'Merry Christmas from Miso!' : '' }).greet }
+    : currentFestival();
+  document.querySelectorAll('.outfit').forEach((g) => {
+    g.style.display = fest && g.dataset.outfit === fest.outfit ? '' : 'none';
+  });
+  const festive = document.getElementById('festive');
+  festive.hidden = !(fest && fest.greet);
+  if (fest && fest.greet) festive.textContent = fest.greet;
+}
+applyOutfit();
 
 // ---------- Miso FM: a lofi loop synthesised in the browser ----------
 const radio = document.getElementById('radio');
